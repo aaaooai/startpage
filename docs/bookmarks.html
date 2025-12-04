@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bookmarks - Startpage</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .bookmarks-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 40px;
+      text-align: center;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #4a9eff;
+      text-decoration: none;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    .bookmark-list {
+      margin-bottom: 30px;
+    }
+
+    .bookmark-edit-item {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 12px;
+      position: relative;
+    }
+
+    .bookmark-edit-item.dragging .bookmark-card {
+      opacity: 0.5;
+    }
+
+    .bookmark-edit-item.drag-over .bookmark-card {
+      border-top: 2px solid #4a9eff;
+    }
+
+    .bookmark-card {
+      background-color: rgba(255, 255, 255, 0.05);
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 16px;
+      flex: 1;
+      position: relative;
+    }
+
+    .bookmark-fields {
+      flex: 1;
+    }
+
+    .drag-handle {
+      flex-shrink: 0;
+      width: 24px;
+      cursor: grab;
+      color: #666;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+    }
+
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .bookmark-edit-item input {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 8px;
+      background-color: rgba(255, 255, 255, 0.05);
+      border: 1px solid #444;
+      color: #fff;
+      font-family: 'Courier New', monospace;
+      font-size: 0.95rem;
+      border-radius: 4px;
+    }
+
+    .bookmark-edit-item input.error {
+      border-color: #d9534f;
+      background-color: rgba(217, 83, 79, 0.1);
+    }
+
+    .bookmark-edit-item label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.85rem;
+      color: #aaa;
+    }
+
+    .delete-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: none;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      font-size: 1.2rem;
+      padding: 4px 8px;
+      line-height: 1;
+      transition: color 0.2s;
+    }
+
+    .delete-btn:hover {
+      color: #d9534f;
+    }
+
+    .add-bookmark-separator {
+      display: flex;
+      align-items: center;
+      margin: 8px 0;
+    }
+
+    .add-bookmark-separator::before,
+    .add-bookmark-separator::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background-color: #333;
+    }
+
+    .add-bookmark-btn {
+      background: none;
+      border: 1px solid #444;
+      color: #666;
+      font-family: 'Courier New', monospace;
+      font-size: 1rem;
+      cursor: pointer;
+      border-radius: 4px;
+      padding: 4px 12px;
+      margin: 0 12px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+
+    .add-bookmark-btn:hover {
+      color: #aaa;
+      border-color: #666;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+    }
+
+    button {
+      flex: 1;
+      padding: 14px;
+      background-color: #4a9eff;
+      border: none;
+      color: #fff;
+      font-family: 'Courier New', monospace;
+      font-size: 1rem;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      background-color: #3a8eef;
+    }
+
+    button.secondary {
+      background-color: #333;
+    }
+
+    button.secondary:hover {
+      background-color: #444;
+    }
+
+    .hint {
+      font-size: 0.85rem;
+      color: #666;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="bookmarks-container">
+    <a href="index.html" class="back-link">← Back to Startpage</a>
+    <h1>Edit Bookmarks</h1>
+
+    <div class="bookmark-list" id="bookmarkList"></div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'startpageBookmarks';
+    let bookmarks = [];
+
+    const defaultBookmarks = [
+      {
+        "name": "GitHub",
+        "url": "https://github.com",
+        "tags": ["dev", "code"]
+      },
+      {
+        "name": "Google",
+        "url": "https://google.com",
+        "tags": ["search"]
+      },
+      {
+        "name": "YouTube",
+        "url": "https://youtube.com",
+        "tags": ["video", "entertainment"]
+      },
+      {
+        "name": "Twitter",
+        "url": "https://twitter.com",
+        "tags": ["social"]
+      }
+    ];
+
+    async function loadBookmarks() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        bookmarks = JSON.parse(saved);
+      } else {
+        try {
+          const response = await fetch('bookmark.json');
+          bookmarks = await response.json();
+        } catch (error) {
+          console.error('Failed to load bookmarks:', error);
+          bookmarks = defaultBookmarks;
+        }
+      }
+      renderBookmarks();
+    }
+
+    let draggedIndex = null;
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function clearDragOverClass() {
+      document.querySelectorAll('.bookmark-edit-item').forEach(item => {
+        item.classList.remove('drag-over');
+      });
+    }
+
+    function handleDragStart(e) {
+      draggedIndex = parseInt(e.currentTarget.dataset.index);
+      e.currentTarget.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      clearDragOverClass();
+      e.currentTarget.classList.add('drag-over');
+      return false;
+    }
+
+    function handleDrop(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      clearDragOverClass();
+
+      const dropIndex = parseInt(e.currentTarget.dataset.index);
+      if (draggedIndex !== null && draggedIndex !== dropIndex) {
+        const [draggedItem] = bookmarks.splice(draggedIndex, 1);
+        bookmarks.splice(dropIndex, 0, draggedItem);
+        saveBookmarks();
+        renderBookmarks();
+      }
+      return false;
+    }
+
+    function handleDragEnd(e) {
+      e.currentTarget.classList.remove('dragging');
+      clearDragOverClass();
+      draggedIndex = null;
+    }
+
+    function createAddButton(position) {
+      const separator = document.createElement('div');
+      separator.className = 'add-bookmark-separator';
+      separator.innerHTML = `<button class="add-bookmark-btn" data-position="${position}">+</button>`;
+      return separator;
+    }
+
+    function attachDragHandlers(item) {
+      item.addEventListener('dragstart', handleDragStart);
+      item.addEventListener('dragover', handleDragOver);
+      item.addEventListener('drop', handleDrop);
+      item.addEventListener('dragend', handleDragEnd);
+    }
+
+    function createBookmarkItem(bookmark, index) {
+      const item = document.createElement('div');
+      item.className = 'bookmark-edit-item';
+      item.draggable = true;
+      item.dataset.index = index;
+      item.innerHTML = `
+        <div class="bookmark-card">
+          <button class="delete-btn" data-index="${index}">×</button>
+          <div class="bookmark-fields">
+            <label>Name</label>
+            <input type="text" class="bookmark-name" value="${escapeHtml(bookmark.name)}" placeholder="Bookmark name" data-index="${index}">
+
+            <label>URL</label>
+            <input type="text" class="bookmark-url" value="${escapeHtml(bookmark.url)}" placeholder="https://example.com" data-index="${index}">
+
+            <label>Tags (comma-separated)</label>
+            <input type="text" class="bookmark-tags" value="${escapeHtml(bookmark.tags.join(', '))}" placeholder="tag1, tag2" data-index="${index}">
+            <div class="hint">Example: dev, code, web</div>
+          </div>
+        </div>
+        <div class="drag-handle">≡</div>
+      `;
+      attachDragHandlers(item);
+      return item;
+    }
+
+    function handleInputChange() {
+      validateBookmarks();
+      autoSaveBookmarks();
+    }
+
+    function renderBookmarks() {
+      const container = document.getElementById('bookmarkList');
+      container.innerHTML = '';
+
+      container.appendChild(createAddButton(0));
+
+      bookmarks.forEach((bookmark, index) => {
+        container.appendChild(createBookmarkItem(bookmark, index));
+        container.appendChild(createAddButton(index + 1));
+      });
+
+      document.querySelectorAll('.bookmark-name, .bookmark-url').forEach(input => {
+        input.addEventListener('input', handleInputChange);
+      });
+
+      // Tags: normalize format on blur
+      document.querySelectorAll('.bookmark-tags').forEach(input => {
+        input.addEventListener('input', handleInputChange);
+
+        input.addEventListener('blur', (e) => {
+          const normalized = normalizeTagsFormat(e.target.value);
+          if (e.target.value !== normalized) {
+            e.target.value = normalized;
+            handleInputChange();
+          }
+        });
+      });
+
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          deleteBookmark(parseInt(e.target.dataset.index));
+        });
+      });
+
+      document.querySelectorAll('.add-bookmark-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          addBookmarkAt(parseInt(e.target.dataset.position));
+        });
+      });
+
+      // Validate after rendering
+      validateBookmarks();
+    }
+
+    function saveBookmarks() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(bookmarks));
+    }
+
+    function createNewBookmark() {
+      return {
+        name: '',
+        url: '',
+        tags: []
+      };
+    }
+
+    function addBookmarkAt(position) {
+      bookmarks.splice(position, 0, createNewBookmark());
+      saveBookmarks();
+      renderBookmarks();
+    }
+
+    function deleteBookmark(index) {
+      if (confirm('Delete this bookmark?')) {
+        bookmarks.splice(index, 1);
+        saveBookmarks();
+        renderBookmarks();
+      }
+    }
+
+    function parseTags(tagsString) {
+      return tagsString.split(',').map(tag => tag.trim()).filter(tag => tag);
+    }
+
+    function autoSaveBookmarks() {
+      const nameInputs = document.querySelectorAll('.bookmark-name');
+      const urlInputs = document.querySelectorAll('.bookmark-url');
+      const tagsInputs = document.querySelectorAll('.bookmark-tags');
+
+      bookmarks = Array.from(nameInputs).map((nameInput, index) => ({
+        name: nameInput.value,
+        url: urlInputs[index].value,
+        tags: parseTags(tagsInputs[index].value)
+      }));
+
+      saveBookmarks();
+    }
+
+    function isValidUrl(url) {
+      if (!url || url.trim() === '') return false;
+      try {
+        new URL(url);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function toggleError(input, hasError) {
+      input.classList.toggle('error', hasError);
+    }
+
+    function validateBookmarks() {
+      document.querySelectorAll('.bookmark-name').forEach(input => {
+        toggleError(input, input.value.trim() === '');
+      });
+
+      document.querySelectorAll('.bookmark-url').forEach(input => {
+        const url = input.value.trim();
+        toggleError(input, url === '' || !isValidUrl(url));
+      });
+
+      document.querySelectorAll('.bookmark-tags').forEach(input => {
+        const hasInvalidFormat = input.value && /,(?!\s|$)/.test(input.value);
+        toggleError(input, hasInvalidFormat);
+      });
+    }
+
+    function normalizeTagsFormat(tagsString) {
+      if (!tagsString) return '';
+      return tagsString.replace(/,\s*/g, ', ').replace(/,\s*$/, '');
+    }
+
+    loadBookmarks();
+  </script>
+</body>
+</html>

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings - Startpage</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .config-container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 40px;
+      text-align: center;
+    }
+
+    .form-group {
+      margin-bottom: 30px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 1rem;
+      color: #aaa;
+    }
+
+    input[type="text"],
+    input[type="color"] {
+      width: 100%;
+      padding: 12px;
+      background-color: rgba(255, 255, 255, 0.05);
+      border: 1px solid #333;
+      color: #fff;
+      font-family: 'Courier New', monospace;
+      font-size: 1rem;
+      border-radius: 4px;
+    }
+
+    input[type="color"] {
+      width: 100px;
+      height: 50px;
+      cursor: pointer;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 40px;
+    }
+
+    button {
+      flex: 1;
+      padding: 14px;
+      background-color: #4a9eff;
+      border: none;
+      color: #fff;
+      font-family: 'Courier New', monospace;
+      font-size: 1rem;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      background-color: #3a8eef;
+    }
+
+    button.secondary {
+      background-color: #333;
+    }
+
+    button.secondary:hover {
+      background-color: #444;
+    }
+
+    .hint {
+      font-size: 0.85rem;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #4a9eff;
+      text-decoration: none;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="config-container">
+    <a href="index.html" class="back-link">← Back to Startpage</a>
+    <h1>Settings</h1>
+
+    <div class="form-group">
+      <label for="backgroundColor">Background Color</label>
+      <input type="color" id="backgroundColor" value="#000000">
+    </div>
+
+    <div class="form-group">
+      <label for="textColor">Text Color</label>
+      <input type="color" id="textColor" value="#ffffff">
+    </div>
+
+    <div class="form-group">
+      <label for="accentColor">Accent Color</label>
+      <input type="color" id="accentColor" value="#4a9eff">
+    </div>
+
+    <div class="form-group">
+      <label for="searchEngine">Search Engine URL</label>
+      <input type="text" id="searchEngine" value="https://www.startpage.com/search?q=" placeholder="https://www.startpage.com/search?q=">
+      <div class="hint">Add search query parameter at the end (e.g., ?q=)</div>
+    </div>
+
+    <div class="form-group">
+      <label for="backgroundImage">Background Image URL</label>
+      <input type="text" id="backgroundImage" placeholder="background.jpg or https://..." value="">
+      <div class="hint">Local file path or external URL</div>
+    </div>
+
+    <div class="form-group">
+      <label for="backgroundBlur">Background Blur: <span id="blurValue">0</span>px</label>
+      <input type="range" id="backgroundBlur" value="0" min="0" max="20" step="1">
+      <div class="hint">Blur effect for background image (0-20px)</div>
+    </div>
+
+    <div class="form-group">
+      <label for="maskColor">Mask Color</label>
+      <input type="color" id="maskColor" value="#000000">
+      <div class="hint">Color overlay on background image</div>
+    </div>
+
+    <div class="form-group">
+      <label for="maskOpacity">Mask Opacity: <span id="opacityValue">60</span>%</label>
+      <input type="range" id="maskOpacity" value="60" min="0" max="100" step="1">
+      <div class="hint">Opacity of mask overlay (0-100%)</div>
+    </div>
+
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'startpageConfig';
+
+    const DEFAULT_CONFIG = {
+      backgroundColor: '#000000',
+      textColor: '#ffffff',
+      accentColor: '#4a9eff',
+      searchEngine: 'https://www.startpage.com/search?q=',
+      backgroundImage: '',
+      backgroundBlur: 0,
+      maskColor: '#000000',
+      maskOpacity: 60
+    };
+
+    const CONFIG_FIELDS = [
+      'backgroundColor',
+      'textColor',
+      'accentColor',
+      'searchEngine',
+      'backgroundImage',
+      'backgroundBlur',
+      'maskColor',
+      'maskOpacity'
+    ];
+
+    function getConfigFromInputs() {
+      return CONFIG_FIELDS.reduce((config, field) => {
+        config[field] = document.getElementById(field).value;
+        return config;
+      }, {});
+    }
+
+    function updateSliderValue(sliderId, valueId) {
+      const slider = document.getElementById(sliderId);
+      const valueDisplay = document.getElementById(valueId);
+      valueDisplay.textContent = slider.value;
+    }
+
+    function setInputsFromConfig(config) {
+      CONFIG_FIELDS.forEach(field => {
+        document.getElementById(field).value = config[field];
+      });
+      updateSliderValue('backgroundBlur', 'blurValue');
+      updateSliderValue('maskOpacity', 'opacityValue');
+    }
+
+    function loadSettings() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      const config = saved ? JSON.parse(saved) : DEFAULT_CONFIG;
+      setInputsFromConfig(config);
+      applyTheme(config);
+    }
+
+    function applyTheme(config) {
+      document.body.style.backgroundColor = config.backgroundColor;
+      document.body.style.color = config.textColor;
+
+      // Apply background image effects
+      removeElementById('background-style');
+      removeElementById('background-mask');
+
+      const backgroundImage = config.backgroundImage;
+      if (backgroundImage) {
+        applyBackgroundImage(backgroundImage, config.backgroundBlur);
+        applyMask(config.maskColor, config.maskOpacity);
+      }
+    }
+
+    function removeElementById(id) {
+      const element = document.getElementById(id);
+      if (element) {
+        element.remove();
+      }
+    }
+
+    function applyBackgroundImage(backgroundImage, backgroundBlur) {
+      const blur = backgroundBlur || 0;
+      const filterValue = blur > 0 ? `blur(${blur}px)` : 'none';
+
+      const bgStyle = document.createElement('style');
+      bgStyle.id = 'background-style';
+      bgStyle.textContent = `
+        body::before {
+          content: '';
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-image: url('${backgroundImage}');
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+          filter: ${filterValue};
+          z-index: -2;
+        }
+      `;
+      document.head.appendChild(bgStyle);
+      document.body.style.backgroundImage = 'none';
+    }
+
+    function applyMask(maskColor, maskOpacity) {
+      const opacity = (maskOpacity || 0) / 100;
+      if (opacity > 0) {
+        const mask = document.createElement('div');
+        mask.id = 'background-mask';
+        Object.assign(mask.style, {
+          position: 'fixed',
+          top: '0',
+          left: '0',
+          width: '100%',
+          height: '100%',
+          backgroundColor: maskColor || '#000000',
+          opacity: opacity.toString(),
+          zIndex: '-1',
+          pointerEvents: 'none'
+        });
+        document.body.appendChild(mask);
+      }
+    }
+
+    function autoSaveSettings() {
+      const config = getConfigFromInputs();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+      applyTheme(config);
+    }
+
+    CONFIG_FIELDS.forEach(field => {
+      document.getElementById(field).addEventListener('input', autoSaveSettings);
+    });
+
+    document.getElementById('backgroundBlur').addEventListener('input', () => updateSliderValue('backgroundBlur', 'blurValue'));
+    document.getElementById('maskOpacity').addEventListener('input', () => updateSliderValue('maskOpacity', 'opacityValue'));
+
+    loadSettings();
+  </script>
+</body>
+</html>
