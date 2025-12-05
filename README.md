@@ -15,8 +15,34 @@ A minimal, keyboard-driven browser startpage with bookmark management and custom
 ## Quick Start
 
 1. Clone this repository
+   ```bash
+   git clone https://github.com/aaaooai/startpage.git
+   cd startpage
+   ```
 2. Open `docs/index.html` in your browser
 3. Set it as your browser's homepage
+
+### Local Development with Docker/Podman
+
+You can run the startpage locally using Docker or Podman:
+
+**Using Docker Compose or Podman Compose:**
+```bash
+docker compose up -d
+# or
+podman compose up -d
+```
+
+**Using Docker or Podman directly:**
+```bash
+# Docker
+docker run --rm -it -v ./docs:/usr/share/nginx/html -p 8000:80 nginx:latest
+
+# Podman
+podman run --rm -it -v ./docs:/usr/share/nginx/html:Z -p 8000:80 docker.io/nginx:latest
+```
+
+Then access at `http://localhost:8000`
 
 ### GitHub Pages Deployment
 
