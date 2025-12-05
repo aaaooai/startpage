@@ -1,0 +1,7 @@
+services:
+  startpage:
+    image: docker.io/nginx:latest
+    volumes:
+      - ./docs:/usr/share/nginx/html
+    ports:
+      - 8000:80
