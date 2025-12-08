@@ -276,7 +276,15 @@
     }
 
     CONFIG_FIELDS.forEach(field => {
-      document.getElementById(field).addEventListener('input', autoSaveSettings);
+      const element = document.getElementById(field);
+      element.addEventListener('input', autoSaveSettings);
+
+      // Select all text on focus for text inputs
+      if (element.type === 'text') {
+        element.addEventListener('focus', function() {
+          this.select();
+        });
+      }
     });
 
     document.getElementById('backgroundBlur').addEventListener('input', () => updateSliderValue('backgroundBlur', 'blurValue'));

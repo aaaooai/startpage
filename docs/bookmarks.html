@@ -292,7 +292,27 @@
     function createAddButton(position) {
       const separator = document.createElement('div');
       separator.className = 'add-bookmark-separator';
+      separator.dataset.position = position;
       separator.innerHTML = `<button class="add-bookmark-btn" data-position="${position}">+</button>`;
+
+      // Allow dropping on separator to insert at position
+      separator.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      });
+
+      separator.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const dropPosition = parseInt(separator.dataset.position);
+        if (draggedIndex !== null) {
+          const [draggedItem] = bookmarks.splice(draggedIndex, 1);
+          const adjustedPosition = draggedIndex < dropPosition ? dropPosition - 1 : dropPosition;
+          bookmarks.splice(adjustedPosition, 0, draggedItem);
+          saveBookmarks();
+          renderBookmarks();
+        }
+      });
+
       return separator;
     }
 
@@ -347,11 +367,17 @@
 
       document.querySelectorAll('.bookmark-name, .bookmark-url').forEach(input => {
         input.addEventListener('input', handleInputChange);
+        input.addEventListener('focus', function() {
+          this.select();
+        });
       });
 
       // Tags: normalize format on blur
       document.querySelectorAll('.bookmark-tags').forEach(input => {
         input.addEventListener('input', handleInputChange);
+        input.addEventListener('focus', function() {
+          this.select();
+        });
 
         input.addEventListener('blur', (e) => {
           const normalized = normalizeTagsFormat(e.target.value);
