@@ -183,6 +183,11 @@ const commandHandlers = {
   ':bookmark': () => { window.location.href = 'bookmarks.html'; },
   ':help': () => { toggleHelp(); },
   ':list': () => {
+    // Reload bookmarks from localStorage to get latest changes
+    const saved = localStorage.getItem(STORAGE_KEYS.BOOKMARKS);
+    if (saved) {
+      bookmarks = JSON.parse(saved);
+    }
     showingAllBookmarks = true;
     filteredBookmarks = bookmarks;
     selectedIndex = 0;
@@ -601,6 +606,21 @@ function handleEscapeKey() {
     searchInput.focus();
   }
 }
+
+// Reload bookmarks when page becomes visible (e.g., returning from bookmark editor)
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    const saved = localStorage.getItem(STORAGE_KEYS.BOOKMARKS);
+    if (saved) {
+      bookmarks = JSON.parse(saved);
+      // Update current view if showing all bookmarks
+      if (showingAllBookmarks) {
+        filteredBookmarks = bookmarks;
+        renderResults();
+      }
+    }
+  }
+});
 
 async function init() {
   await loadData();
